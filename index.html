@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>/team-config — Agent Pipeline Setup</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface-2: #1a1a26;
+    --border: #2a2a3a;
+    --text: #e4e4ef;
+    --text-dim: #8888a0;
+    --accent: #7c6aff;
+    --accent-glow: rgba(124, 106, 255, 0.15);
+    --green: #34d399;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --cyan: #22d3ee;
+    --pink: #f472b6;
+    --orange: #fb923c;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  .deck {
+    height: 100vh;
+    width: 100vw;
+    position: relative;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 60px 80px;
+    opacity: 0;
+    transform: translateX(60px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    pointer-events: none;
+  }
+
+  .slide.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+  }
+
+  .slide.exit {
+    opacity: 0;
+    transform: translateX(-60px);
+  }
+
+  /* Nav */
+  .nav {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    z-index: 100;
+    align-items: center;
+  }
+
+  .nav button {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    transition: all 0.2s;
+  }
+
+  .nav button:hover {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+
+  .dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .dot.active {
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+  }
+
+  /* Progress bar */
+  .progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    background: var(--accent);
+    transition: width 0.5s ease;
+    z-index: 100;
+    box-shadow: 0 0 15px var(--accent);
+  }
+
+  /* Slide counter */
+  .counter {
+    position: fixed;
+    top: 20px;
+    right: 30px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--text-dim);
+    z-index: 100;
+  }
+
+  /* Typography */
+  h1 {
+    font-size: 4rem;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 20px;
+  }
+
+  h2 {
+    font-size: 2.8rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin-bottom: 16px;
+  }
+
+  h3 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  .subtitle {
+    font-size: 1.3rem;
+    color: var(--text-dim);
+    max-width: 600px;
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  .mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .accent { color: var(--accent); }
+  .green { color: var(--green); }
+  .amber { color: var(--amber); }
+  .cyan { color: var(--cyan); }
+  .pink { color: var(--pink); }
+  .orange { color: var(--orange); }
+  .red { color: var(--red); }
+  .dim { color: var(--text-dim); }
+
+  /* Command badge */
+  .cmd {
+    display: inline-block;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem;
+    color: var(--accent);
+    margin-bottom: 30px;
+  }
+
+  /* Cards */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    width: 100%;
+    max-width: 1100px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    transition: all 0.3s;
+    cursor: default;
+  }
+
+  .card:hover {
+    border-color: var(--accent);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3), 0 0 20px var(--accent-glow);
+  }
+
+  .card .icon {
+    font-size: 2rem;
+    margin-bottom: 12px;
+  }
+
+  .card .codename {
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 6px;
+  }
+
+  .card .role {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .card .quote {
+    font-size: 0.75rem;
+    font-style: italic;
+    color: var(--text-dim);
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    line-height: 1.4;
+  }
+
+  /* Pipeline visualization */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+    max-width: 1100px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 20px;
+  }
+
+  .pipe-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 16px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    min-width: 110px;
+    transition: all 0.4s;
+    position: relative;
+  }
+
+  .pipe-node.lit {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .pipe-node .p-icon { font-size: 1.5rem; }
+  .pipe-node .p-name {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .pipe-arrow {
+    font-size: 1.2rem;
+    color: var(--text-dim);
+    margin: 0 4px;
+    transition: color 0.4s;
+  }
+
+  .pipe-arrow.lit { color: var(--accent); }
+
+  .pipe-scribe {
+    position: absolute;
+    bottom: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .pipe-scribe-line {
+    width: 1px;
+    height: 20px;
+    background: var(--text-dim);
+  }
+
+  /* Terminal mockup */
+  .terminal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 750px;
+    overflow: hidden;
+    margin-top: 20px;
+  }
+
+  .terminal-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .terminal-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+
+  .terminal-body {
+    padding: 20px 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 1.8;
+    min-height: 200px;
+  }
+
+  .terminal-body .prompt {
+    color: var(--green);
+  }
+
+  .terminal-body .cmd-text {
+    color: var(--text);
+  }
+
+  .terminal-body .output {
+    color: var(--text-dim);
+  }
+
+  .terminal-body .highlight {
+    color: var(--accent);
+  }
+
+  .terminal-body .option {
+    padding: 2px 0;
+  }
+
+  .terminal-body .option .bullet {
+    color: var(--accent);
+    margin-right: 8px;
+  }
+
+  .terminal-body .selected {
+    background: var(--accent-glow);
+    border-radius: 4px;
+    padding: 2px 6px;
+    margin: 2px 0;
+    display: inline-block;
+  }
+
+  /* Checkpoint */
+  .checkpoint-flow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 900px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 30px;
+  }
+
+  .cp-stage {
+    padding: 12px 18px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    white-space: nowrap;
+  }
+
+  .cp-stage.auto {
+    border-color: var(--border);
+    color: var(--text-dim);
+  }
+
+  .cp-stage.check {
+    border-color: var(--amber);
+    color: var(--amber);
+    box-shadow: 0 0 15px rgba(251, 191, 36, 0.15);
+  }
+
+  .cp-arrow {
+    color: var(--text-dim);
+    font-size: 1rem;
+  }
+
+  .cp-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 4px;
+    text-align: center;
+  }
+
+  .cp-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Notes mockup */
+  .notes-doc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 30px 36px;
+    max-width: 650px;
+    width: 100%;
+    font-size: 0.85rem;
+    line-height: 1.8;
+    margin-top: 20px;
+  }
+
+  .notes-doc h4 {
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+    margin-top: 16px;
+  }
+
+  .notes-doc h4:first-child { margin-top: 0; }
+
+  .notes-doc .entry {
+    color: var(--text-dim);
+    padding: 2px 0;
+  }
+
+  .notes-doc .entry strong {
+    color: var(--text);
+  }
+
+  .notes-doc .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 16px 0;
+  }
+
+  /* File tree */
+  .file-tree {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 2;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 32px;
+    margin-top: 20px;
+    max-width: 550px;
+  }
+
+  .file-tree .folder { color: var(--accent); }
+  .file-tree .file { color: var(--text-dim); }
+  .file-tree .new-file { color: var(--green); }
+  .file-tree .tag {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+    vertical-align: middle;
+    font-weight: 600;
+  }
+  .file-tree .tag-you { background: rgba(124,106,255,0.2); color: var(--accent); }
+  .file-tree .tag-gen { background: rgba(52,211,153,0.2); color: var(--green); }
+
+  /* Big number */
+  .big-num {
+    font-size: 8rem;
+    font-weight: 900;
+    color: var(--accent);
+    line-height: 1;
+    letter-spacing: -0.04em;
+  }
+
+  /* Stagger animations */
+  .stagger > * {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+
+  .slide.active .stagger > *:nth-child(1) { opacity: 1; transform: translateY(0); transition-delay: 0.1s; }
+  .slide.active .stagger > *:nth-child(2) { opacity: 1; transform: translateY(0); transition-delay: 0.2s; }
+  .slide.active .stagger > *:nth-child(3) { opacity: 1; transform: translateY(0); transition-delay: 0.3s; }
+  .slide.active .stagger > *:nth-child(4) { opacity: 1; transform: translateY(0); transition-delay: 0.4s; }
+  .slide.active .stagger > *:nth-child(5) { opacity: 1; transform: translateY(0); transition-delay: 0.5s; }
+  .slide.active .stagger > *:nth-child(6) { opacity: 1; transform: translateY(0); transition-delay: 0.6s; }
+  .slide.active .stagger > *:nth-child(7) { opacity: 1; transform: translateY(0); transition-delay: 0.7s; }
+  .slide.active .stagger > *:nth-child(8) { opacity: 1; transform: translateY(0); transition-delay: 0.8s; }
+  .slide.active .stagger > *:nth-child(9) { opacity: 1; transform: translateY(0); transition-delay: 0.9s; }
+
+  /* Two column */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    width: 100%;
+    max-width: 1000px;
+    align-items: center;
+  }
+
+  .two-col .col {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* CTA */
+  .cta {
+    margin-top: 30px;
+    padding: 14px 32px;
+    background: var(--accent);
+    color: white;
+    font-weight: 700;
+    font-size: 1.1rem;
+    border-radius: 12px;
+    border: none;
+    cursor: default;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: -0.01em;
+    box-shadow: 0 4px 20px rgba(124, 106, 255, 0.3);
+  }
+
+  /* Keyboard hint */
+  .key-hint {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    opacity: 0.5;
+    z-index: 100;
+  }
+
+  .key-hint kbd {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin: 0 2px;
+  }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+<div class="counter mono" id="counter"></div>
+<div class="key-hint"><kbd>&larr;</kbd> <kbd>&rarr;</kbd> or click to navigate</div>
+
+<div class="deck" id="deck">
+
+  <!-- Slide 1: Title -->
+  <div class="slide active" data-slide="0">
+    <div class="stagger" style="display:flex;flex-direction:column;align-items:center;">
+      <div class="cmd">/team-config</div>
+      <h1 style="text-align:center;">Assemble your<br><span class="accent">agent squad.</span></h1>
+      <p class="subtitle">One command to configure an entire agent pipeline with role-based personas, sequential handoffs, and human checkpoints.</p>
+      <p class="subtitle" style="margin-top:20px;font-size:0.9rem;">Drop one file into any repo. Run <span class="mono accent">/team-config</span>. Build.</p>
+    </div>
+  </div>
+
+  <!-- Slide 2: The Problem -->
+  <div class="slide" data-slide="1">
+    <div class="stagger" style="display:flex;flex-direction:column;align-items:center;">
+      <p class="dim mono" style="font-size:0.85rem;margin-bottom:12px;">THE PROBLEM</p>
+      <h2 style="text-align:center;">Agents are powerful.<br>But <span class="red">unstructured</span> agents are chaos.</h2>
+      <div style="max-width:600px;margin-top:30px;display:flex;flex-direction:column;gap:16px;">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <span style="font-size:1.5rem;">&#x1F6A8;</span>
+          <span class="dim">No clear handoff between "spec" and "code" and "review"</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <span style="font-size:1.5rem;">&#x1F504;</span>
+          <span class="dim">Agents redo each other's work or skip critical steps</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <span style="font-size:1.5rem;">&#x1F4AD;</span>
+          <span class="dim">No record of why decisions were made</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <span style="font-size:1.5rem;">&#x1F527;</span>
+          <span class="dim">Setting up teams manually every time is tedious</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 3: The Solution -->
+  <div class="slide" data-slide="2">
+    <div class="stagger" style="display:flex;flex-direction:column;align-items:center;">
+      <p class="dim mono" style="font-size:0.85rem;margin-bottom:12px;">THE SOLUTION</p>
+      <h2 style="text-align:center;">A <span class="accent">structured pipeline</span><br>that runs itself.</h2>
+      <div style="max-width:620px;margin-top:30px;display:flex;flex-direction:column;gap:20px;">
+        <div style="display:flex;align-items:flex-start;gap:14px;">
+          <span class="accent mono" style="font-weight:700;min-width:24px;">1.</span>
+          <span>Each agent has a <strong>specific role</strong> and a <strong>distinct persona</strong></span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:14px;">
+          <span class="accent mono" style="font-weight:700;min-width:24px;">2.</span>
+          <span>Stages run <strong>sequentially</strong> &mdash; each one feeds the next</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:14px;">
+          <span class="accent mono" style="font-weight:700;min-width:24px;">3.</span>
+          <span>You choose where to <strong>insert human checkpoints</strong></span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:14px;">
+          <span class="accent mono" style="font-weight:700;min-width:24px;">4.</span>
+          <span>A <strong>Scribe</strong> silently documents every decision and tradeoff</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:14px;">
+          <span class="accent mono" style="font-weight:700;min-width:24px;">5.</span>
+          <span>Save config, reload it next time with <span class="mono accent">/team-config --load</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 4: The Squad -->
+  <div class="slide" data-slide="3">
+    <div class="stagger" style="display:flex;flex-direction:column;align-items:center;width:100%;">
+      <p class="dim mono" style="font-size:0.85rem;margin-bottom:12px;">THE SQUAD</p>
+      <h2 style="text-align:center;margin-bottom:24px;">Eight roles. Eight personas.</h2>
+      <div class="card-grid">
+        <div class="card">
+          <div class="icon">&#x1F3D7;</div>
+          <div class="codename accent">The Architect</div>
+          <div class="role">Turns ideas into specs no one can misread</div>
+          <div class="quote">"You measure twice because cutting twice is expensive."</div>
+        </div>
+        <div class="card">
+          <div class="icon">&#x1F50D;</div>
+          <div class="codename amber">The Skeptic</div>
+          <div class="role">Pokes holes in blueprints before code is written</div>
+          <div class="quote">"I'd rather find the holes now than in production at 2 AM."</div>
+        </div>
+        <div class="card">
+          <div class="icon">&#x2692;</div>
+          <div class="codename cyan">The Test Smith</div>
+          <div class="role">Writes tests first. That's the religion.</div>
+          <div class="quote">"A failing test is a promise."</div>
+        </div>
+        <div class="card">
+          <div class="icon">&#x1F9EA;</div>
+          <div class="codename pink">The Test Critic</div>
+          <div class="role">Makes sure the tests actually prove something</div>
+          <div class="quote">"The worst test is one that passes when the code is broken."</div>
+        </div>
+        <div class="card">
+          <div class="icon">&#x1F528;</div>
+          <div class="codename green">The Builder</div>
+          <div class="role">Minimum code, maximum correctness</div>
+          <div class="quote">"Over-engineering is a bug."</div>
+        </div>
+        <div class="card">
+          <div class="icon">&#x1F6E1;</div>
+          <div class="codename orange">The Gatekeeper</div>
+          <div class="role">Nothing ships until this passes review</div>
+          <div class="quote">"'It works on my machine' means nothing."</div>
+        </div>
+        <div class="card">
+          <div class="icon">&#x2696;</div>
+          <div class="codename red">The Judge</div>
+          <div class="role">Final verdict: did we build what we promised?</div>
+          <div class="quote">"I'm not here to be impressed. I'm here to verify."</div>
+        </div>
+        <div class="card">
+          <div class="icon">&#x1F4DD;</div>
+          <div class="codename" style="color:var(--text-dim);">The Scribe</div>
+          <div class="role">Watches everything. Writes down what matters.</div>
+          <div class="quote">"Every word earns its place or gets cut."</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 5: The Pipeline -->
+  <div class="slide" data-slide="4">
+    <div class="stagger" style="display:flex;flex-direction:column;align-items:center;width:100%;">
+      <p class="dim mono" style="font-size:0.85rem;margin-bottom:12px;">THE PIPELINE</p>
+      <h2 style="text-align:center;margin-bottom:10px;">Each stage feeds the next.</h2>
+      <p class="dim" style="margin-bottom:30px;text-align:center;">Sequential handoffs. No ambiguity about who does what.</p>
+      <div class="pipeline" id="pipeline">
+        <div class="pipe-node" data-idx="0"><span class="p-icon">&#x1F3D7;</span><span class="p-name">Architect</span></div>
+        <span class="pipe-arrow">&rarr;</span>
+        <div class="pipe-node" data-idx="1"><span class="p-icon">&#x1F50D;</span><span class="p-name">Skeptic</span></div>
+        <span class="pipe-arrow">&rarr;</span>
+        <div class="pipe-node" data-idx="2"><span class="p-icon">&#x2692;</span><span class="p-name">Test Smith</span></div>
+        <span class="pipe-arrow">&rarr;</span>
+        <div class="pipe-node" data-idx="3"><span class="p-icon">&#x1F9EA;</span><span class="p-name">Test Critic</span></div>
+        <span class="pipe-arrow">&rarr;</span>
+        <div class="pipe-node" data-idx="4"><span class="p-icon">&#x1F528;</span><span class="p-name">Builder</span></div>
+        <span class="pipe-arrow">&rarr;</span>
+        <div class="pipe-node" data-idx="5"><span class="p-icon">&#x1F6E1;</span><span class="p-name">Gatekeeper</span></div>
+        <span class="pipe-arrow">&rarr;</span>
+        <div class="pipe-node" data-idx="6"><span class="p-icon">&#x2696;</span><span class="p-name">Judge</span></div>
+      </div>
+      <div style="margin-top:50px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:1.2rem;">&#x1F4DD;</span>
+        <span class="dim" style="font-size:0.85rem;">The Scribe watches the entire flow, documenting decisions in real time</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 6: Interactive Setup -->
+  <div class="slide" data-slide="5">
+    <div class="two-col">
+      <div class="col stagger">
+        <p class="dim mono" style="font-size:0.85rem;margin-bottom:12px;">INTERACTIVE SETUP</p>
+        <h2>You pick.<br>It builds.</h2>
+        <p class="dim" style="margin-top:10px;line-height:1.6;">The command walks you through a few quick questions, then assembles and launches the entire pipeline automatically.</p>
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span class="accent mono" style="font-weight:700;">Q1</span>
+            <span class="dim">What are you building?</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span class="accent mono" style="font-weight:700;">Q2</span>
+            <span class="dim">Pick your squad</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span class="accent mono" style="font-weight:700;">Q3</span>
+            <span class="dim">Set your checkpoints</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span class="accent mono" style="font-weight:700;">Q4</span>
+            <span class="dim">Add custom roles?</span>
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="terminal">
+          <div class="terminal-bar">
+            <div class="terminal-dot" style="background:#ff5f57;"></div>
+            <div class="terminal-dot" style="background:#febc2e;"></div>
+            <div class="terminal-dot" style="background:#28c840;"></div>
+            <span class="dim mono" style="font-size:0.75rem;margin-left:8px;">claude</span>
+          </div>
+          <div class="terminal-body">
+            <div><span class="prompt">$</span> <span class="cmd-text">/team-config</span></div>
+            <br>
+            <div class="output">Pick your squad. Who's on the roster?</div>
+            <br>
+            <div class="option"><span class="bullet accent">&#x25C6;</span><span class="selected">The Architect</span></div>
+            <div class="option"><span class="bullet accent">&#x25C6;</span><span class="selected">The Skeptic</span></div>
+            <div class="option"><span class="bullet accent">&#x25C6;</span><span class="selected">The Test Smith</span></div>
+            <div class="option"><span class="bullet dim">&#x25C7;</span> The Test Critic</div>
+            <div class="option"><span class="bullet accent">&#x25C6;</span><span class="selected">The Builder</span></div>
+            <div class="option"><span class="bullet accent">&#x25C6;</span><span class="selected">The Gatekeeper</span></div>
+            <div class="option"><span class="bullet dim">&#x25C7;</span> The Judge</div>
+            <div class="option"><span class="bullet accent">&#x25C6;</span><span class="selected">The Scribe</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 7: Checkpoints -->
+  <div class="slide" data-slide="6">
+    <div class="stagger" style="display:flex;flex-direction:column;align-items:center;">
+      <p class="dim mono" style="font-size:0.85rem;margin-bottom:12px;">HUMAN IN THE LOOP</p>
+      <h2 style="text-align:center;">You decide where to<br><span class="amber">pause and review.</span></h2>
+      <p class="dim" style="margin-top:8px;margin-bottom:10px;">Checkpoint stages wait for your approval before the pipeline continues.</p>
+      <div class="checkpoint-flow">
+        <div class="cp-wrapper">
+          <div class="cp-stage auto">&#x1F3D7; Architect</div>
+          <div class="cp-label dim">auto</div>
+        </div>
+        <span class="cp-arrow">&rarr;</span>
+        <div class="cp-wrapper">
+          <div class="cp-stage check">&#x1F50D; Skeptic &#x270B;</div>
+          <div class="cp-label amber">checkpoint</div>
+        </div>
+        <span class="cp-arrow">&rarr;</span>
+        <div class="cp-wrapper">
+          <div class="cp-stage auto">&#x2692; Test Smith</div>
+          <div class="cp-label dim">auto</div>
+        </div>
+        <span class="cp-arrow">&rarr;</span>
+        <div class="cp-wrapper">
+          <div class="cp-stage auto">&#x1F9EA; Test Critic</div>
+          <div class="cp-label dim">auto</div>
+        </div>
+        <span class="cp-arrow">&rarr;</span>
+        <div class="cp-wrapper">
+          <div class="cp-stage auto">&#x1F528; Builder</div>
+          <div class="cp-label dim">auto</div>
+        </div>
+        <span class="cp-arrow">&rarr;</span>
+        <div class="cp-wrapper">
+          <div class="cp-stage check">&#x1F6E1; Gatekeeper &#x270B;</div>
+          <div class="cp-label amber">checkpoint</div>
+        </div>
+        <span class="cp-arrow">&rarr;</span>
+        <div class="cp-wrapper">
+          <div class="cp-stage auto">&#x2696; Judge</div>
+          <div class="cp-label dim">auto</div>
+        </div>
+      </div>
+      <p class="dim" style="margin-top:40px;font-size:0.85rem;">Example: review the spec after The Skeptic, and the code after The Gatekeeper.</p>
+    </div>
+  </div>
+
+  <!-- Slide 8: The Scribe -->
+  <div class="slide" data-slide="7">
+    <div class="two-col">
+      <div class="col stagger">
+        <p class="dim mono" style="font-size:0.85rem;margin-bottom:12px;">THE SCRIBE</p>
+        <h2>Every decision,<br><span style="color:var(--text-dim);">documented.</span></h2>
+        <p class="dim" style="margin-top:10px;line-height:1.6;">The Scribe watches the entire pipeline and produces a session log designed to be absorbed in 60 seconds.</p>
+        <p class="dim" style="margin-top:12px;line-height:1.6;">No fluff. No filler. No "in conclusion."</p>
+        <p class="dim" style="margin-top:12px;line-height:1.6;font-style:italic;">"Every word earns its place or gets cut."</p>
+      </div>
+      <div class="col">
+        <div class="notes-doc">
+          <h4 class="dim" style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.1em;">session-notes.md</h4>
+          <h4>Session Notes &mdash; Auth Refactor</h4>
+          <p class="dim" style="font-size:0.7rem;font-style:italic;">Compiled by The Scribe</p>
+          <hr class="divider">
+          <h4>The Blueprint</h4>
+          <p class="entry"><strong>Decision:</strong> JWT with refresh tokens | <strong>Why:</strong> Stateless scales better than sessions</p>
+          <p class="entry"><strong>Tradeoff:</strong> No instant revocation | <strong>OK because:</strong> 15-min expiry is acceptable</p>
+          <h4>The Skeptic's Take</h4>
+          <p class="entry"><strong>Flagged:</strong> No rate limiting on refresh | <strong>Resolution:</strong> Added to spec</p>
+          <h4>The Build</h4>
+          <p class="entry"><strong>Approach:</strong> Middleware + decorator pattern</p>
+          <p class="entry"><strong>Not this:</strong> Custom auth backend | <strong>Because:</strong> framework middleware is sufficient</p>
+          <h4 style="color:var(--text-dim);">For Next Time</h4>
+          <p class="entry">- Consider token rotation for long sessions</p>
+          <p class="entry">- Evaluate OAuth2 for third-party integrations</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 9: Portability -->
+  <div class="slide" data-slide="8">
+    <div class="stagger" style="display:flex;flex-direction:column;align-items:center;">
+      <p class="dim mono" style="font-size:0.85rem;margin-bottom:12px;">PORTABLE</p>
+      <h2 style="text-align:center;"><span class="green">One file.</span> Any repo.</h2>
+      <p class="dim" style="margin-top:8px;margin-bottom:10px;">Drop it in. Run the command. Everything else is generated.</p>
+      <div class="file-tree">
+        <div><span class="folder">.claude/</span></div>
+        <div>&nbsp;&nbsp;<span class="folder">commands/</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="new-file">team-config.md</span> <span class="tag tag-you">you add this</span></div>
+        <div>&nbsp;&nbsp;<span class="folder">agents/</span> <span class="dim" style="font-size:0.75rem;">generated at runtime</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">team-architect.md</span> <span class="tag tag-gen">generated</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">team-skeptic.md</span> <span class="tag tag-gen">generated</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="file">team-builder.md</span> <span class="tag tag-gen">generated</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="file dim">...</span></div>
+        <div>&nbsp;&nbsp;<span class="file">team-config.json</span> <span class="tag tag-gen">generated</span></div>
+        <div>&nbsp;&nbsp;<span class="file">session-notes.md</span> <span class="tag tag-gen">generated</span></div>
+      </div>
+      <p class="dim" style="margin-top:24px;font-size:0.85rem;">Generated agent files and config are committed &mdash; shared with your team.</p>
+    </div>
+  </div>
+
+  <!-- Slide 10: Reload -->
+  <div class="slide" data-slide="9">
+    <div class="two-col">
+      <div class="col stagger">
+        <p class="dim mono" style="font-size:0.85rem;margin-bottom:12px;">REUSABLE</p>
+        <h2>Same squad.<br><span class="accent">Next session.</span></h2>
+        <p class="dim" style="margin-top:10px;line-height:1.6;">Your pipeline config is saved. Reload it instantly, or tweak it before launching.</p>
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;gap:10px;align-items:center;">
+            <span class="mono accent" style="font-weight:700;font-size:0.85rem;">/team-config --load</span>
+          </div>
+          <div class="dim" style="font-size:0.85rem;">Shows your saved lineup, lets you confirm or modify, then spawns.</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="terminal">
+          <div class="terminal-bar">
+            <div class="terminal-dot" style="background:#ff5f57;"></div>
+            <div class="terminal-dot" style="background:#febc2e;"></div>
+            <div class="terminal-dot" style="background:#28c840;"></div>
+            <span class="dim mono" style="font-size:0.75rem;margin-left:8px;">claude</span>
+          </div>
+          <div class="terminal-body">
+            <div><span class="prompt">$</span> <span class="cmd-text">/team-config --load</span></div>
+            <br>
+            <div class="output">============================</div>
+            <div class="output">&nbsp;LAST SESSION'S LINEUP</div>
+            <div class="output">============================</div>
+            <div class="output">Project: <span class="highlight">Auth system refactor</span></div>
+            <div class="output">Squad: &nbsp; <span class="highlight">Architect &rarr; Skeptic &rarr; Test Smith &rarr; Builder &rarr; Gatekeeper &rarr; Judge</span></div>
+            <div class="output">Checks: <span class="highlight">Skeptic, Gatekeeper</span></div>
+            <div class="output">Scribe: <span class="green">on</span></div>
+            <div class="output">============================</div>
+            <br>
+            <div class="output">Run it back or switch it up?</div>
+            <div class="option"><span class="bullet accent">&#x25C6;</span><span class="selected">Run it back &mdash; same squad, let's go</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 11: Outro -->
+  <div class="slide" data-slide="10">
+    <div class="stagger" style="display:flex;flex-direction:column;align-items:center;">
+      <div class="cmd" style="font-size:1.4rem;padding:10px 24px;">/team-config</div>
+      <h1 style="text-align:center;">Assemble. Configure.<br><span class="accent">Build.</span></h1>
+      <p class="subtitle" style="margin-top:12px;">One file. Any repo. Interactive setup.<br>Sequential pipeline. Human checkpoints. Decision log.</p>
+      <div class="cta" style="margin-top:40px;">drop into .claude/commands/ and go</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Nav -->
+<div class="nav">
+  <button id="prev">&larr;</button>
+  <div class="dots" id="dots"></div>
+  <button id="next">&rarr;</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+
+  const progress = document.getElementById('progress');
+  const counter = document.getElementById('counter');
+  const dotsContainer = document.getElementById('dots');
+
+  // Create dots
+  for (let i = 0; i < total; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'dot' + (i === 0 ? ' active' : '');
+    dot.addEventListener('click', () => goTo(i));
+    dotsContainer.appendChild(dot);
+  }
+
+  function updateUI() {
+    progress.style.width = ((current + 1) / total * 100) + '%';
+    counter.textContent = (current + 1) + ' / ' + total;
+    document.querySelectorAll('.dot').forEach((d, i) => {
+      d.classList.toggle('active', i === current);
+    });
+  }
+
+  function goTo(idx) {
+    if (idx === current || idx < 0 || idx >= total) return;
+    slides[current].classList.remove('active');
+    slides[current].classList.add('exit');
+    setTimeout(() => slides[current === idx ? current : current].classList.remove('exit'), 500);
+
+    const prev = current;
+    current = idx;
+    slides[current].classList.remove('exit');
+    slides[current].classList.add('active');
+    setTimeout(() => slides[prev].classList.remove('exit'), 500);
+    updateUI();
+
+    // Pipeline animation on slide 5
+    if (current === 4) animatePipeline();
+  }
+
+  document.getElementById('prev').addEventListener('click', () => goTo(current - 1));
+  document.getElementById('next').addEventListener('click', () => goTo(current + 1));
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(current - 1); }
+  });
+
+  // Pipeline animation
+  function animatePipeline() {
+    const nodes = document.querySelectorAll('.pipe-node');
+    const arrows = document.querySelectorAll('.pipe-arrow');
+    nodes.forEach(n => n.classList.remove('lit'));
+    arrows.forEach(a => a.classList.remove('lit'));
+
+    nodes.forEach((node, i) => {
+      setTimeout(() => {
+        node.classList.add('lit');
+        if (i > 0 && arrows[i - 1]) arrows[i - 1].classList.add('lit');
+      }, i * 300);
+    });
+  }
+
+  updateUI();
+</script>
+
+</body>
+</html>
