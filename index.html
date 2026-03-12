@@ -828,8 +828,52 @@
     </div>
   </div>
 
-  <!-- Slide 8: The Scribe -->
-  <div class="slide" data-slide="7">
+
+  <!-- Slide 8: Review Loops + Fresh Eyes -->
+  <div class="slide" data-slide="8">
+    <div class="stagger" style="display:flex;flex-direction:column;align-items:center;">
+      <p class="dim mono" style="font-size:0.85rem;margin-bottom:12px;">REVIEW LOOPS + FRESH EYES</p>
+      <h2 style="text-align:center;">They <span class="cyan">iterate</span> until it's right.<br>Then <span class="green">fresh eyes</span> verify.</h2>
+      <div style="max-width:800px;margin-top:30px;display:flex;flex-direction:column;gap:24px;">
+        <div style="display:flex;gap:20px;align-items:stretch;">
+          <div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;">
+            <h3 style="color:var(--cyan);font-size:0.9rem;margin-bottom:10px;">Phase A &mdash; In-Session Iteration</h3>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;line-height:2;color:var(--text-dim);">
+              <div><span style="color:var(--accent);">Architect</span> writes spec</div>
+              <div>&nbsp;&nbsp;&darr;</div>
+              <div><span style="color:var(--amber);">Skeptic</span> reviews &rarr; SENT BACK</div>
+              <div>&nbsp;&nbsp;&darr;</div>
+              <div><span style="color:var(--accent);">Architect</span> fixes &rarr; re-submits</div>
+              <div>&nbsp;&nbsp;&darr;</div>
+              <div><span style="color:var(--amber);">Skeptic</span> reviews &rarr; <span style="color:var(--green);">APPROVED</span></div>
+            </div>
+            <p style="font-size:0.7rem;color:var(--text-dim);margin-top:10px;font-style:italic;">Same agent throughout. Full context. No limit on rounds.</p>
+          </div>
+          <div style="flex:1;background:var(--surface);border:1px solid var(--green);border-radius:12px;padding:20px;box-shadow:0 0 20px rgba(52,211,153,0.1);">
+            <h3 style="color:var(--green);font-size:0.9rem;margin-bottom:10px;">Phase B &mdash; Fresh Eyes</h3>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;line-height:2;color:var(--text-dim);">
+              <div><span style="color:var(--green);">New Skeptic</span> spawns (zero context)</div>
+              <div>&nbsp;&nbsp;&darr;</div>
+              <div>Reads final spec cold</div>
+              <div>&nbsp;&nbsp;&darr;</div>
+              <div style="color:var(--green);">&quot;CONFIRMED. Fresh eyes found nothing new.&quot;</div>
+              <div>&nbsp;&nbsp;&darr;</div>
+              <div>Pipeline advances &rarr;</div>
+            </div>
+            <p style="font-size:0.7rem;color:var(--text-dim);margin-top:10px;font-style:italic;">No anchoring. No baggage. Just: does this hold up?</p>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:center;gap:40px;font-size:0.8rem;">
+          <div style="display:flex;align-items:center;gap:8px;"><span style="color:var(--accent);">&#x25CF;</span> <span class="dim">Architect &harr; Skeptic</span></div>
+          <div style="display:flex;align-items:center;gap:8px;"><span style="color:var(--cyan);">&#x25CF;</span> <span class="dim">Test Smith &harr; Test Critic</span></div>
+          <div style="display:flex;align-items:center;gap:8px;"><span style="color:var(--orange);">&#x25CF;</span> <span class="dim">Builder &harr; Gatekeeper</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 9: The Scribe -->
+  <div class="slide" data-slide="8">
     <div class="two-col">
       <div class="col stagger">
         <p class="dim mono" style="font-size:0.85rem;margin-bottom:12px;">THE SCRIBE</p>
@@ -860,8 +904,8 @@
     </div>
   </div>
 
-  <!-- Slide 9: Portability -->
-  <div class="slide" data-slide="8">
+  <!-- Slide 10: Portability -->
+  <div class="slide" data-slide="9">
     <div class="stagger" style="display:flex;flex-direction:column;align-items:center;">
       <p class="dim mono" style="font-size:0.85rem;margin-bottom:12px;">PORTABLE</p>
       <h2 style="text-align:center;"><span class="green">One file.</span> Any repo.</h2>
@@ -882,8 +926,8 @@
     </div>
   </div>
 
-  <!-- Slide 10: Reload -->
-  <div class="slide" data-slide="9">
+  <!-- Slide 11: Reload -->
+  <div class="slide" data-slide="10">
     <div class="two-col">
       <div class="col stagger">
         <p class="dim mono" style="font-size:0.85rem;margin-bottom:12px;">REUSABLE</p>
@@ -924,12 +968,12 @@
     </div>
   </div>
 
-  <!-- Slide 11: Outro -->
-  <div class="slide" data-slide="10">
+  <!-- Slide 12: Outro -->
+  <div class="slide" data-slide="11">
     <div class="stagger" style="display:flex;flex-direction:column;align-items:center;">
       <div class="cmd" style="font-size:1.4rem;padding:10px 24px;">/team-config</div>
       <h1 style="text-align:center;">Assemble. Configure.<br><span class="accent">Build.</span></h1>
-      <p class="subtitle" style="margin-top:12px;">One file. Any repo. Interactive setup.<br>Sequential pipeline. Human checkpoints. Decision log.</p>
+      <p class="subtitle" style="margin-top:12px;">One file. Any repo. Interactive setup.<br>Sequential pipeline. Review loops. Fresh eyes. Decision log.</p>
       <div class="cta" style="margin-top:40px;">drop into .claude/commands/ and go</div>
     </div>
   </div>

@@ -31,13 +31,34 @@ A single file you drop into any repo's `.claude/commands/` directory. Run `/team
 ## The Pipeline
 
 ```
-Architect → Skeptic → Test Smith → Test Critic → Builder → Gatekeeper → Judge
-                                                                          ↓
-                                                                    Decision Log
-                                                                   (from The Scribe)
+Architect ←→ Skeptic → Test Smith ←→ Test Critic → Builder ←→ Gatekeeper → Judge
+    ↑            ↓          ↑              ↓           ↑            ↓          ↓
+    └── iterate ─┘          └── iterate ───┘           └── iterate ─┘    Decision Log
+                                                                        (from The Scribe)
 ```
 
-Each stage produces output that feeds the next. The Scribe observes in parallel and writes a session log designed to be absorbed in 60 seconds.
+Each stage feeds the next. But it's not a one-way conveyor belt — **producer-reviewer pairs iterate until the reviewer approves.**
+
+### Review Loops
+
+Three pairs go back and forth until the work is right:
+
+| Producer | Reviewer | They iterate on |
+|----------|----------|----------------|
+| Architect | Skeptic | The spec — is it clear, complete, and bulletproof? |
+| Test Smith | Test Critic | The tests — do they actually prove the spec? |
+| Builder | Gatekeeper | The code — is it correct, secure, and shippable? |
+
+The reviewer can send work back as many times as needed. No artificial limits.
+
+### Fresh Eyes Final Pass
+
+After the in-session reviewer approves, a **brand new reviewer** with zero prior context does a cold read. They've never seen the iterations, the discussions, or the compromises. They just read the final artifact and ask: *does this hold up?*
+
+- **If clean**: pipeline advances
+- **If they catch something**: it goes back to the producer for one more fix
+
+This mirrors real teams: your primary reviewer iterates with you, then someone else skims it before merge.
 
 ## Quick Start
 
