@@ -47,98 +47,132 @@ Write `.claude/team-config.json`:
 
 ---
 
-## Phase 4: Launch Pipeline
+## Phase 4: Run Pipeline
 
-Creates the team, sets up tasks, spawns agents, and **exits**. Agents self-route from here.
+**You stay running and drive the pipeline sequentially.** No fire-and-forget. You spawn one agent at a time using the `Agent` tool, wait for it to finish, read its output, then spawn the next.
 
-### 4.1: Create Team
+### Pipeline structure
 
-`TeamCreate` with a slug derived from the project context (e.g., "api-endpoint-squad").
+The pipeline is a sequence of **stages**. Some stages are **review pairs** (producer + reviewer). You handle the iteration loop yourself.
 
-### 4.2: Create Pipeline Tasks
-
-`TaskCreate` in pipeline order with `addBlockedBy` for sequencing.
-
-**Lite:**
+**Full pipeline:**
 ```
-Task 1: Architect (no blockers)
-Task 2: Builder (blockedBy: [1])
-Task 3: Gatekeeper (blockedBy: [2])
+1. Architect  ←→  Skeptic (review pair)
+2. Test Smith ←→  Test Critic (review pair)
+3. Builder    ←→  Gatekeeper (review pair)
+4. Judge (solo)
+5. Scribe (solo, runs last)
 ```
 
-**Full:**
+**Lite pipeline:**
 ```
-Task 1: Architect (no blockers)
-Task 2: Skeptic (blockedBy: [1])
-Task 3: Test Smith (blockedBy: [2])
-Task 4: Test Critic (blockedBy: [3])
-Task 5: Builder (blockedBy: [4])
-Task 6: Gatekeeper (blockedBy: [5])
-Task 7: Judge (blockedBy: [6])
-Scribe: no blockers (parallel)
+1. Architect (solo)
+2. Builder ←→ Gatekeeper (review pair)
 ```
 
-### 4.3: Spawn Agents
+### 4.1: Running a solo stage
 
-For each role, use the `Task` tool:
+1. Announce the stage to the user (use the entrance line from the quick reference)
+2. Spawn the agent with the `Agent` tool:
+   - `subagent_type`: "general-purpose"
+   - `mode`: "plan" for The Architect (always) and user-designated checkpoints. "default" otherwise.
+   - `prompt`: Include the project context, their full persona (from `team-config-personas.md`), input file paths, and instruction to write output to `.claude/pipeline/{slug}.md`
+3. Wait for the agent to complete
+4. Confirm output file exists. Briefly tell the user what happened (1-2 sentences, not a wall of text).
+5. Move to the next stage.
 
-- `subagent_type`: "general-purpose"
-- `name`: "team-{role-slug}"
-- `mode`: "plan" for The Architect (always) and checkpoint stages. "default" otherwise.
-- `prompt`: project context + full persona (from `team-config-personas.md`) + routing (see 4.4) + entrance line
+### 4.2: Running a review pair
 
-### 4.4: Pipeline Routing
+A review pair has a **producer** and a **reviewer**. They iterate until the reviewer approves (max 3 rounds).
 
-Inject into each agent's prompt:
+**Round 1:**
+1. Announce the producer. Spawn producer agent → wait → read output from `.claude/pipeline/{producer-slug}.md`
+2. Announce the reviewer. Spawn reviewer agent with the producer's output file as input → wait → read reviewer's verdict
 
-1. **Write output to**: `.claude/pipeline/{slug}.md`
-2. **Read input from**: previous stage's output file
-3. **Notify next**: next agent via `SendMessage`
-4. **Review partner**: who to iterate with (if applicable)
+**If reviewer approves (verdict contains "APPROVED" or "SOLID"):**
+3. Spawn a **fresh eyes** reviewer — a new agent with no memory of prior rounds. Use the fresh eyes prompt variant from `team-config-personas.md`. Pass only the final artifact, not the review history.
+4. If fresh eyes confirms ("CONFIRMED"): stage is done. Move to next stage.
+5. If fresh eyes finds issues: run one more producer round (see "sent back" below), then fresh eyes re-checks. If still issues after that, ask the user what to do.
 
-**Review pairs self-manage**: max 3 rounds via `SendMessage`, then escalate to user. Reviewer spawns fresh eyes after approving. Reviewer marks task complete and notifies next.
+**If reviewer sends it back (verdict contains "SENT BACK", "NEEDS WORK", or "BLOCKED"):**
+3. Show the user a 1-line summary of what the reviewer flagged.
+4. Spawn the producer again with: the reviewer's feedback + their previous output + instruction to address the feedback and update `.claude/pipeline/{producer-slug}.md`
+5. Spawn the reviewer again with the updated output.
+6. Repeat. **Max 3 rounds.** If round 3 and still not approved, ask the user:
+   - "The reviewer still has concerns after 3 rounds. Options: (a) Override and move on, (b) Give guidance, (c) One more round"
 
-**Full routing table:**
+### 4.3: Checkpoint stages
 
-| Agent | Reads from | Writes to | Notifies | Review partner |
-|-------|-----------|-----------|----------|----------------|
-| Architect | (request) | pipeline/architect.md | team-skeptic | team-skeptic |
-| Skeptic | pipeline/architect.md | — | team-test-smith | team-architect |
-| Test Smith | pipeline/architect.md | pipeline/test-smith.md | team-test-critic | team-test-critic |
-| Test Critic | pipeline/test-smith.md | — | team-builder | team-test-smith |
-| Builder | blueprint + tests | pipeline/builder.md | team-gatekeeper | team-gatekeeper |
-| Gatekeeper | pipeline/builder.md | — | team-judge | team-builder |
-| Judge | all pipeline files | pipeline/judge.md | (done) | — |
-| Scribe | monitors all | session-notes.md | (done) | — |
+If a stage is a user-designated checkpoint, **pause after the agent completes** and show the user the output summary. Ask: "Good to proceed?" before moving to the next stage. Use `mode: "plan"` for the agent.
 
-**Lite routing**: Architect → Builder → Gatekeeper. Gatekeeper reviews Builder's code.
+### 4.4: The Scribe
 
-If caffeinate PID was noted, include in the last agent's prompt: `kill <PID>` when pipeline completes.
+If The Scribe is in the pipeline, spawn it **after the last stage completes** (not in parallel). Give it:
+- The project context
+- Paths to all pipeline output files (`.claude/pipeline/*.md`)
+- Instruction to read each file and produce `.claude/session-notes.md`
+- Instruction to archive: copy `session-notes.md` and `team-config.json` to `.claude/sessions/YYYY-MM-DD-[slug]/`
 
-### 4.5: Report and Exit
+### 4.5: Pipeline status updates
+
+Between stages, show a brief progress line:
+
+```
+[2/3] Builder is up next...
+```
+
+or for review pairs:
+
+```
+[1/3] Architect ←→ Skeptic — round 2...
+```
+
+### 4.6: Completion
+
+When all stages are done:
+
+1. If caffeinate was started, kill it: `kill <PID>`
+2. Display:
 
 ```
 ===========================================
- THE SQUAD IS ASSEMBLED. LET'S BUILD.
+ DONE. Here's what happened:
 ===========================================
- [pipeline with arrows]
- Checkpoints at: [list]
- Config saved to .claude/team-config.json
- Agents: self-routing, no orchestrator needed
- Check progress: /team-config --status
- Next time: /team-config --load
+ [one-line summary per stage]
+
+ Session notes: .claude/session-notes.md
+ Config saved: .claude/team-config.json
+ Reload: /team-config --load
 ===========================================
 ```
 
-**Done.** Agents handle everything from here.
+---
+
+## Agent prompt template
+
+When spawning each agent, use this structure:
+
+```
+**Project**: {project context}
+
+**Your role**: {entrance line}
+
+**Input**: Read {input file path(s)}
+
+**Output**: Write your final output to {output file path}
+
+{full persona from team-config-personas.md}
+
+{for review rounds: "The reviewer sent back your work with this feedback: {feedback}. Address each point, update your output file, and re-submit."}
+```
+
+Keep prompts focused. Don't include routing tables or pipeline communication protocols — you're handling the coordination, not the agents.
 
 ---
 
 ## Cleanup
 
-Handled by agents, not this command.
-
 - **Personas** (`.claude/agents/team-*.md`): gitignored, ephemeral.
 - **Pipeline files** (`.claude/pipeline/*.md`): gitignored, ephemeral.
-- **Session archiving**: The Scribe archives to `.claude/sessions/YYYY-MM-DD-[slug]/` after Judge's verdict.
+- **Session archiving**: handled by The Scribe (or by you if Scribe isn't in the pipeline — just copy config + notes to `.claude/sessions/`).
 - **Config**: stays for `--load`.

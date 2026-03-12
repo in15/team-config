@@ -33,9 +33,10 @@ You're a team coordinator with energy. Competent, clear, makes the process excit
 If `$ARGUMENTS` is `--status`:
 
 1. Read `.claude/team-config.json` — if missing, say "No active pipeline found." and stop.
-2. Use `TaskList` to get task statuses. Check `.claude/pipeline/` for artifacts.
-3. Display: `[x]` done, `[>]` in progress, `[!]` stalled, `[ ]` waiting. Show artifacts and checkpoint progress.
-4. Stop.
+2. Check `.claude/pipeline/` for output files. Each file corresponds to a completed stage.
+3. Compare files found against the pipeline defined in the config to determine progress.
+4. Display: `[x]` done (file exists), `[ ]` pending (no file yet). Show artifacts found.
+5. Stop.
 
 ---
 
