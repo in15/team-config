@@ -17,6 +17,40 @@ When announcing stage transitions to the user, use the stage's **entrance line**
 
 ---
 
+## Pre-flight: Check if Agent Teams are Enabled
+
+**Do this FIRST, before anything else.**
+
+1. Read the user's Claude Code settings file at `~/.claude/settings.json`
+2. Check if the `env` object contains `"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"` set to `"1"`
+3. Also check `~/.claude/settings.local.json` as a fallback
+
+**If the setting exists and is `"1"`**: proceed to Phase 0.
+
+**If the setting is missing or not `"1"`**: tell the user:
+
+> Agent teams aren't enabled yet. This feature requires the `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` environment variable to be set in your Claude Code settings.
+>
+> I can turn it on for you — it adds one line to `~/.claude/settings.json`.
+
+Then use `AskUserQuestion` to ask:
+- "Want me to enable agent teams?"
+- Options: "Yes, turn it on", "No thanks, I'll pass"
+
+**If yes**: read `~/.claude/settings.json`, add `"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"` to the `env` object (creating the `env` object if it doesn't exist), and write the file back. Then tell the user:
+
+> Done. Agent teams are enabled. You'll need to **restart Claude Code** for this to take effect. After restarting, run `/team-config` again and we'll get your squad assembled.
+
+Then stop — don't proceed with the rest of the command, since the setting won't take effect until restart.
+
+**If no**: tell the user:
+
+> No worries. Agent teams are an experimental feature — you can enable it anytime by adding `"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"` to the `env` section of `~/.claude/settings.json`. Come back when you're ready.
+
+Then stop.
+
+---
+
 ## Phase 0: Check for --load
 
 If `$ARGUMENTS` is `--load` or `--reload`:
