@@ -6,14 +6,23 @@ One command to assemble an agent pipeline with role-based personas for [Claude C
 
 ## What is this?
 
-A single file you drop into any repo's `.claude/commands/` directory. Run `/team-config` in Claude Code, and it:
+A command you drop into any repo's `.claude/commands/` directory. Run `/team-config` in Claude Code, and it:
 
-1. **Asks what you're building** — interactive setup via quick questions
-2. **Assembles a squad** — 8 specialized agent personas with distinct voices
-3. **Runs a pipeline** — each stage hands off to the next, sequentially
-4. **Pauses where you want** — configurable human checkpoints between stages
-5. **Documents everything** — a Scribe agent produces a concise decision log
+1. **Checks your setup** — verifies agent teams are enabled, offers to turn it on
+2. **Asks what you're building** — interactive setup via quick questions
+3. **Lets you pick a mode** — Lite (3 agents), Full (8 agents), or Custom
+4. **Assembles a squad** — specialized agent personas with distinct voices
+5. **Launches and exits** — agents self-route, no orchestrator sitting in the middle
 6. **Saves your config** — reload next time with `/team-config --load`
+7. **Shows progress** — check pipeline status anytime with `/team-config --status`
+
+## Pipeline Modes
+
+| Mode | Agents | Best for |
+|------|--------|----------|
+| **Lite** (default) | Architect, Builder, Gatekeeper | Simple tasks, fast iteration |
+| **Full** | All 8 roles | Complex projects that need to be bulletproof |
+| **Custom** | You pick | When you know exactly what you need |
 
 ## The Squad
 
@@ -31,47 +40,62 @@ A single file you drop into any repo's `.claude/commands/` directory. Run `/team
 ## The Pipeline
 
 ```
-Architect ←→ Skeptic → Test Smith ←→ Test Critic → Builder ←→ Gatekeeper → Judge
-    ↑            ↓          ↑              ↓           ↑            ↓          ↓
-    └── iterate ─┘          └── iterate ───┘           └── iterate ─┘    Decision Log
-                                                                        (from The Scribe)
+Architect <-> Skeptic -> Test Smith <-> Test Critic -> Builder <-> Gatekeeper -> Judge
+    |            |           |              |            |            |           |
+    +-- iterate -+           +-- iterate ---+            +-- iterate -+     Decision Log
+                                                                          (The Scribe)
 ```
 
-Each stage feeds the next. But it's not a one-way conveyor belt — **producer-reviewer pairs iterate until the reviewer approves.**
+### Review Loops (max 3 rounds)
 
-### Review Loops
-
-Three pairs go back and forth until the work is right:
+Producer-reviewer pairs iterate directly via `SendMessage` — no orchestrator in the middle:
 
 | Producer | Reviewer | They iterate on |
 |----------|----------|----------------|
-| Architect | Skeptic | The spec — is it clear, complete, and bulletproof? |
+| Architect | Skeptic | The spec — clear, complete, bulletproof? |
 | Test Smith | Test Critic | The tests — do they actually prove the spec? |
-| Builder | Gatekeeper | The code — is it correct, secure, and shippable? |
+| Builder | Gatekeeper | The code — correct, secure, shippable? |
 
-The reviewer can send work back as many times as needed. No artificial limits.
+If still unresolved after 3 rounds, the reviewer escalates to the user with options: override, give guidance, or allow one more round.
 
 ### Fresh Eyes Final Pass
 
-After the in-session reviewer approves, a **brand new reviewer** with zero prior context does a cold read. They've never seen the iterations, the discussions, or the compromises. They just read the final artifact and ask: *does this hold up?*
+After the in-session reviewer approves, a **new reviewer instance** with zero prior context does a cold read. They've never seen the iterations or compromises — just the final artifact.
 
 - **If clean**: pipeline advances
-- **If they catch something**: it goes back to the producer for one more fix
+- **If issues found**: goes back to the producer for one more fix
 
-This mirrors real teams: your primary reviewer iterates with you, then someone else skims it before merge.
+### Architect's Escalation
+
+The Architect runs in plan mode and surfaces every question, concern, and decision point. Questions are batched by topic and tagged by severity:
+
+- **[Blocker]** — can't proceed, asked immediately
+- **[Decision]** — multiple valid approaches, batched with related decisions
+- **[FYI]** — notable observations, batched at section boundaries
+
+## Architecture: Fire-and-Forget
+
+The `/team-config` command **only configures and launches** — it doesn't stay running as an orchestrator. After spawning agents:
+
+- Agents communicate directly via `SendMessage`
+- Review loops are self-managed by each producer-reviewer pair
+- Fresh eyes reviewers are spawned by the reviewing agent itself
+- The Scribe monitors task completions and archives the session when done
+- Pipeline sequencing is handled by `TaskCreate` with `addBlockedBy` dependencies
+
+This keeps context clean — no central agent accumulating the entire pipeline's history.
 
 ## Quick Start
 
-### 1. Copy the command file
+### 1. Copy the files
 
 ```bash
-# From your repo root
 mkdir -p .claude/commands
 curl -o .claude/commands/team-config.md \
   https://raw.githubusercontent.com/in15/team-config/main/team-config.md
+curl -o .claude/commands/team-config-personas.md \
+  https://raw.githubusercontent.com/in15/team-config/main/team-config-personas.md
 ```
-
-Or just copy `team-config.md` into `.claude/commands/` manually.
 
 ### 2. Run it
 
@@ -79,9 +103,17 @@ Or just copy `team-config.md` into `.claude/commands/` manually.
 /team-config
 ```
 
-That's it. The command walks you through setup and launches the pipeline.
+The command walks you through setup and launches the pipeline.
 
-### 3. Reload next time
+### 3. Check progress
+
+```
+/team-config --status
+```
+
+Shows a dashboard with task statuses, artifacts produced, and review round info.
+
+### 4. Reload next time
 
 ```
 /team-config --load
@@ -91,27 +123,27 @@ Shows your saved lineup, lets you confirm or tweak, then spawns.
 
 ## What gets generated
 
-When you run `/team-config`, it creates:
+| File | Lifetime | Purpose |
+|------|----------|---------|
+| `.claude/agents/team-*.md` | Ephemeral (gitignored) | Agent persona files, regenerated each session |
+| `.claude/pipeline/*.md` | Ephemeral (gitignored) | Stage outputs and handoff artifacts |
+| `.claude/team-config.json` | Persistent | Saved pipeline config for `--load` |
+| `.claude/session-notes.md` | Archived | The Scribe's decision log |
+| `.claude/sessions/` | Archived | Past configs and notes |
 
-| File | Purpose |
-|------|---------|
-| `.claude/agents/team-*.md` | Agent persona files (one per role) |
-| `.claude/team-config.json` | Saved pipeline config for reuse |
-| `.claude/session-notes.md` | The Scribe's decision log |
-
-Agent files and config are meant to be **committed** — shared with your team so everyone uses the same personas.
+Agent personas are **ephemeral** — gitignored and regenerated each session. The source of truth lives in `team-config-personas.md`.
 
 ## Customization
 
-- **Pick your stages** — use all 8 or just the ones you need
+- **Pick your mode** — Lite for speed, Full for rigor, Custom for control
 - **Set checkpoints** — choose which stages pause for your approval
 - **Add custom roles** — define your own personas with a codename and description
-- **Extend personas** — edit the generated `.claude/agents/team-*.md` files directly
+- **Tweak personas** — edit `team-config-personas.md` to change agent behavior
 
 ## Requirements
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) with team/agent support
-- That's it. No dependencies, no build step, no config files to set up.
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) with agent teams enabled
+- The command checks for `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` and offers to enable it
 
 ## License
 
