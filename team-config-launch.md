@@ -75,11 +75,11 @@ The pipeline is a sequence of **stages**. Some stages are **review pairs** (prod
 1. Announce the stage to the user (use the entrance line from the quick reference)
 2. Spawn the agent with the `Agent` tool:
    - `subagent_type`: "general-purpose"
-   - `mode`: always use "default". Do NOT use "plan" — it causes agents to hang waiting for approval.
+   - `mode`: use "plan" for The Architect (always) and user-designated checkpoint stages. Use "default" for all other stages.
    - `prompt`: Include the project context, their full persona (from `team-config-personas.md`), input file paths, and instruction to write output to `.claude/pipeline/{slug}.md`
-3. Wait for the agent to complete
-4. Confirm output file exists. Briefly tell the user what happened (1-2 sentences, not a wall of text).
-5. **If this is a checkpoint stage**: show the user the output summary and ask "Good to proceed?" before moving on. This is how checkpoints work — YOU pause and ask, not the agent.
+3. **Important**: Before spawning a plan-mode agent, tell the user: "This agent runs in plan mode — you'll need to approve its plan before it executes. Watch for the approval prompt."
+4. Wait for the agent to complete
+5. Confirm output file exists. Briefly tell the user what happened (1-2 sentences, not a wall of text).
 6. Move to the next stage.
 
 ### 4.2: Running a review pair
@@ -104,7 +104,7 @@ A review pair has a **producer** and a **reviewer**. They iterate until the revi
 
 ### 4.3: Checkpoint stages
 
-Checkpoints are handled by YOU (the command), not by the agent. After a checkpoint agent completes, show the user the output summary and ask: "Good to proceed?" Do NOT use `mode: "plan"` — it causes agents to hang.
+Checkpoint stages use `mode: "plan"` — the agent proposes a plan and waits for user approval before executing. Before spawning, remind the user: "Watch for the plan approval prompt." If the agent appears stuck for more than a minute, tell the user it may be waiting for plan approval.
 
 ### 4.4: The Scribe
 
