@@ -25,7 +25,7 @@ When announcing stage transitions to the user, use the stage's **entrance line**
 2. Check if the `env` object contains `"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"` set to `"1"`
 3. Also check `~/.claude/settings.local.json` as a fallback
 
-**If the setting exists and is `"1"`**: proceed to Phase 0.
+**If the setting exists and is `"1"`**: proceed to the caffeinate check.
 
 **If the setting is missing or not `"1"`**: tell the user:
 
@@ -48,6 +48,34 @@ Then stop — don't proceed with the rest of the command, since the setting won'
 > No worries. Agent teams are an experimental feature — you can enable it anytime by adding `"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"` to the `env` section of `~/.claude/settings.json`. Come back when you're ready.
 
 Then stop.
+
+---
+
+## Pre-flight: Caffeinate
+
+After agent teams are confirmed enabled, check if `caffeinate` is already running:
+
+```bash
+pgrep -x caffeinate
+```
+
+**If already running**: skip — someone's already handling it. Proceed to Phase 0.
+
+**If not running**, tell the user:
+
+> This pipeline can take a while. Want me to run `caffeinate` to keep your Mac awake until it's done? I'll kill it when the pipeline finishes.
+
+Use `AskUserQuestion` with options: "Yes, keep it awake", "No, I'll manage it"
+
+**If yes**: run `caffeinate -dims &` in the background. Note the PID. Include a cleanup instruction in The Scribe's final archiving step (or in Phase 4 spawn prompt for the last agent) to kill the caffeinate process when the pipeline completes:
+
+```bash
+kill <PID>
+```
+
+**If no**: proceed without it.
+
+Either way, proceed to Phase 0.
 
 ---
 
