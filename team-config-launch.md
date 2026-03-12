@@ -49,62 +49,76 @@ Write `.claude/team-config.json`:
 
 ## Phase 4: Run Pipeline
 
-**You stay running and drive the pipeline sequentially.** No fire-and-forget. You spawn one agent at a time using the `Agent` tool, wait for it to finish, read its output, then spawn the next.
+**You stay running and drive the pipeline.** You ARE The Architect (you handle that role directly). For all other roles, you spawn sub-agents.
+
+### Why you are The Architect
+
+The Architect needs heavy user interaction — asking questions, getting feedback, iterating on the spec. Sub-agents **cannot** surface `AskUserQuestion` to the user. So you handle The Architect role yourself, directly in the conversation.
 
 ### Pipeline structure
 
-The pipeline is a sequence of **stages**. Some stages are **review pairs** (producer + reviewer). You handle the iteration loop yourself.
-
 **Full pipeline:**
 ```
-1. Architect  ←→  Skeptic (review pair)
-2. Test Smith ←→  Test Critic (review pair)
-3. Builder    ←→  Gatekeeper (review pair)
-4. Judge (solo)
-5. Scribe (solo, runs last)
+1. YOU as The Architect (direct) ←→ Skeptic sub-agent (review pair)
+2. Test Smith sub-agent ←→ Test Critic sub-agent (review pair)
+3. Builder sub-agent ←→ Gatekeeper sub-agent (review pair)
+4. Judge sub-agent (solo)
+5. Scribe sub-agent (solo, runs last)
 ```
 
 **Lite pipeline:**
 ```
-1. Architect (solo)
-2. Builder ←→ Gatekeeper (review pair)
+1. YOU as The Architect (direct)
+2. Builder sub-agent ←→ Gatekeeper sub-agent (review pair)
 ```
 
-### 4.1: Running a solo stage
+### 4.1: You ARE The Architect
 
-1. Announce the stage to the user (use the entrance line from the quick reference)
+1. Announce: "The Architect has the floor. Let's get this on paper."
+2. Read The Architect's full persona from `team-config-personas.md`. Adopt it completely — the personality, the escalation style, the output format.
+3. **Do the work yourself**: explore the codebase, ask the user questions (using severity tags: [Blocker], [Decision], [FYI]), build the blueprint incrementally.
+4. Write the final blueprint to `.claude/pipeline/architect.md`
+5. If The Skeptic is in the pipeline: proceed to the review pair flow (4.3). If not (Lite mode without Skeptic): move to the next stage.
+
+### 4.2: Running a solo sub-agent stage
+
+For all roles except The Architect:
+
+1. Announce the stage (entrance line from quick reference)
 2. Spawn the agent with the `Agent` tool:
    - `subagent_type`: "general-purpose"
-   - `mode`: use "plan" for The Architect (always) and user-designated checkpoint stages. Use "default" for all other stages.
-   - `prompt`: Include the project context, their full persona (from `team-config-personas.md`), input file paths, and instruction to write output to `.claude/pipeline/{slug}.md`
-3. **Important**: Before spawning a plan-mode agent, tell the user: "This agent runs in plan mode — you'll need to approve its plan before it executes. Watch for the approval prompt."
-4. Wait for the agent to complete
-5. Confirm output file exists. Briefly tell the user what happened (1-2 sentences, not a wall of text).
+   - `mode`: "default" (sub-agents cannot use plan mode effectively)
+   - `prompt`: project context + full persona (from `team-config-personas.md`) + input file paths + output file path
+3. Wait for the agent to complete
+4. Confirm output file exists. Briefly tell the user what happened (1-2 sentences).
+5. **If this is a checkpoint stage**: show the user the output summary and ask "Good to proceed?"
 6. Move to the next stage.
 
-### 4.2: Running a review pair
+### 4.3: Running a review pair
 
 A review pair has a **producer** and a **reviewer**. They iterate until the reviewer approves (max 3 rounds).
 
+**Special case**: If The Architect is the producer, YOU do the producer work (see 4.1). The reviewer is still a sub-agent.
+
 **Round 1:**
-1. Announce the producer. Spawn producer agent → wait → read output from `.claude/pipeline/{producer-slug}.md`
-2. Announce the reviewer. Spawn reviewer agent with the producer's output file as input → wait → read reviewer's verdict
+1. If producer is The Architect: you already wrote the output in 4.1. If producer is another role: spawn producer sub-agent → wait → read output.
+2. Spawn reviewer sub-agent with the producer's output file as input → wait → read verdict.
 
 **If reviewer approves (verdict contains "APPROVED" or "SOLID"):**
-3. Spawn a **fresh eyes** reviewer — a new agent with no memory of prior rounds. Use the fresh eyes prompt variant from `team-config-personas.md`. Pass only the final artifact, not the review history.
+3. Spawn a **fresh eyes** reviewer — a new sub-agent with no memory of prior rounds. Use the fresh eyes prompt variant from `team-config-personas.md`. Pass only the final artifact.
 4. If fresh eyes confirms ("CONFIRMED"): stage is done. Move to next stage.
-5. If fresh eyes finds issues: run one more producer round (see "sent back" below), then fresh eyes re-checks. If still issues after that, ask the user what to do.
+5. If fresh eyes finds issues: do one more producer round, then fresh eyes re-checks. If still issues, ask the user.
 
 **If reviewer sends it back (verdict contains "SENT BACK", "NEEDS WORK", or "BLOCKED"):**
 3. Show the user a 1-line summary of what the reviewer flagged.
-4. Spawn the producer again with: the reviewer's feedback + their previous output + instruction to address the feedback and update `.claude/pipeline/{producer-slug}.md`
-5. Spawn the reviewer again with the updated output.
+4. If producer is The Architect: YOU address the feedback directly — update `.claude/pipeline/architect.md`. If another role: spawn producer sub-agent with feedback + previous output.
+5. Spawn reviewer sub-agent again with the updated output.
 6. Repeat. **Max 3 rounds.** If round 3 and still not approved, ask the user:
    - "The reviewer still has concerns after 3 rounds. Options: (a) Override and move on, (b) Give guidance, (c) One more round"
 
-### 4.3: Checkpoint stages
+### 4.4: Checkpoint stages
 
-Checkpoint stages use `mode: "plan"` — the agent proposes a plan and waits for user approval before executing. Before spawning, remind the user: "Watch for the plan approval prompt." If the agent appears stuck for more than a minute, tell the user it may be waiting for plan approval.
+Checkpoints are handled by YOU. After a checkpoint stage's sub-agent completes, show the output summary and ask: "Good to proceed?" before moving on.
 
 ### 4.4: The Scribe
 
