@@ -9,12 +9,12 @@ One command to assemble an agent pipeline with role-based personas for [Claude C
 A command you drop into any repo's `.claude/commands/` directory. Run `/team-config` in Claude Code, and it:
 
 1. **Checks your setup** — verifies agent teams are enabled, offers to turn it on
-2. **Asks what you're building** — interactive setup via quick questions
-3. **Lets you pick a mode** — Lite (3 agents), Full (8 agents), or Custom
-4. **Assembles a squad** — specialized agent personas with distinct voices
-5. **Launches and exits** — agents self-route, no orchestrator sitting in the middle
-6. **Saves your config** — reload next time with `/team-config --load`
-7. **Shows progress** — check pipeline status anytime with `/team-config --status`
+2. **Keeps your Mac awake** — optional `caffeinate` for long pipelines
+3. **Asks what you're building** — interactive setup via quick questions
+4. **Lets you pick a mode** — Lite (3 agents), Full (8 agents), or Custom
+5. **Assembles a squad** — specialized agent personas with distinct voices
+6. **Runs the pipeline** — spawns agents sequentially, manages review loops, reports progress
+7. **Saves your config** — reload next time with `/team-config --load`
 
 ## Pipeline Modes
 
@@ -48,7 +48,7 @@ Architect <-> Skeptic -> Test Smith <-> Test Critic -> Builder <-> Gatekeeper ->
 
 ### Review Loops (max 3 rounds)
 
-Producer-reviewer pairs iterate directly via `SendMessage` — no orchestrator in the middle:
+Producer-reviewer pairs iterate until the reviewer approves:
 
 | Producer | Reviewer | They iterate on |
 |----------|----------|----------------|
@@ -56,11 +56,11 @@ Producer-reviewer pairs iterate directly via `SendMessage` — no orchestrator i
 | Test Smith | Test Critic | The tests — do they actually prove the spec? |
 | Builder | Gatekeeper | The code — correct, secure, shippable? |
 
-If still unresolved after 3 rounds, the reviewer escalates to the user with options: override, give guidance, or allow one more round.
+If still unresolved after 3 rounds, you're asked to intervene: override, give guidance, or allow one more round.
 
 ### Fresh Eyes Final Pass
 
-After the in-session reviewer approves, a **new reviewer instance** with zero prior context does a cold read. They've never seen the iterations or compromises — just the final artifact.
+After the reviewer approves, a **new reviewer instance** with zero prior context does a cold read. They've never seen the iterations or compromises — just the final artifact.
 
 - **If clean**: pipeline advances
 - **If issues found**: goes back to the producer for one more fix
@@ -73,17 +73,15 @@ The Architect runs in plan mode and surfaces every question, concern, and decisi
 - **[Decision]** — multiple valid approaches, batched with related decisions
 - **[FYI]** — notable observations, batched at section boundaries
 
-## Architecture: Fire-and-Forget
+## How It Works
 
-The `/team-config` command **only configures and launches** — it doesn't stay running as an orchestrator. After spawning agents:
+The command drives the pipeline **sequentially** — it spawns one agent at a time, waits for it to complete, reads the output, then spawns the next. For review pairs, it manages the back-and-forth loop and spawns fresh eyes reviewers automatically.
 
-- Agents communicate directly via `SendMessage`
-- Review loops are self-managed by each producer-reviewer pair
-- Fresh eyes reviewers are spawned by the reviewing agent itself
-- The Scribe monitors task completions and archives the session when done
-- Pipeline sequencing is handled by `TaskCreate` with `addBlockedBy` dependencies
-
-This keeps context clean — no central agent accumulating the entire pipeline's history.
+This is simple and reliable:
+- No complex inter-agent messaging
+- No experimental primitives that might not work
+- You see progress as each stage completes
+- Checkpoints pause and wait for your approval
 
 ## Quick Start
 
@@ -93,6 +91,8 @@ This keeps context clean — no central agent accumulating the entire pipeline's
 mkdir -p .claude/commands
 curl -o .claude/commands/team-config.md \
   https://raw.githubusercontent.com/in15/team-config/main/team-config.md
+curl -o .claude/commands/team-config-launch.md \
+  https://raw.githubusercontent.com/in15/team-config/main/team-config-launch.md
 curl -o .claude/commands/team-config-personas.md \
   https://raw.githubusercontent.com/in15/team-config/main/team-config-personas.md
 ```
@@ -103,23 +103,15 @@ curl -o .claude/commands/team-config-personas.md \
 /team-config
 ```
 
-The command walks you through setup and launches the pipeline.
+The command walks you through setup and runs the pipeline.
 
-### 3. Check progress
-
-```
-/team-config --status
-```
-
-Shows a dashboard with task statuses, artifacts produced, and review round info.
-
-### 4. Reload next time
+### 3. Reload next time
 
 ```
 /team-config --load
 ```
 
-Shows your saved lineup, lets you confirm or tweak, then spawns.
+Shows your saved lineup, lets you confirm or tweak, then runs.
 
 ## What gets generated
 
